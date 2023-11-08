@@ -1,6 +1,7 @@
 {
   "name": "zirkeldesign/acorn-fse",
   "description": "A Roots Acorn package, to provide FSE compatibility for Sage 10.",
+  "version": "0.1.0",
   "license": "MIT",
   "type": "package",
   "keywords": [
