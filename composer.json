@@ -1,0 +1,46 @@
+{
+  "name": "zirkeldesign/acorn-fse",
+  "description": "A Roots Acorn package, to provide FSE compatibility for Sage 10.",
+  "license": "MIT",
+  "type": "package",
+  "keywords": [
+    "wordpress",
+    "block theme",
+    "fse",
+    "gutenberg"
+  ],
+  "authors": [
+    {
+      "name": "Daniel Sturm",
+      "email": "d.sturm@zirkeldesign.de"
+    }
+  ],
+  "require": {
+    "php": "^8.1",
+    "roots/acorn": "^3.2"
+  },
+  "require-dev": {
+    "laravel/pint": "^1.13",
+    "nunomaduro/larastan": "^2.6",
+    "phpstan/phpstan": "^1.10",
+    "roave/security-advisories": "dev-latest"
+  },
+  "autoload": {
+    "psr-4": {
+      "Zirkeldesign\\AcornFSE\\": "src/"
+    }
+  },
+  "config": {
+    "sort-packages": true
+  },
+  "extra": {
+    "acorn": {
+      "aliases": {
+        "AcornFSE": "Zirkeldesign\\AcornFSE\\Facades\\AcornFSE"
+      },
+      "providers": [
+        "Zirkeldesign\\AcornFSE\\Providers\\AcornFSEServiceProvider"
+      ]
+    }
+  }
+}

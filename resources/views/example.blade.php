@@ -1,0 +1,1 @@
+{{ AcornFSE::getQuote() }}
