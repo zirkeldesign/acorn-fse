@@ -4,7 +4,7 @@
 
 This [`roots/acorn`](https://roots.io/acorn/) package provides a way to use
 the [WordPress Full Site Editing](https://make.wordpress.org/core/2020/11/18/full-site-editing-in-wordpress-5-6/)
-features in a [Sage 10](https://roots.io/sage/).
+features in a [Sage 10](https://roots.io/sage/). Inspired by [`strarsis/sage10-fse`](https://github.com/strarsis/sage10-fse).
 
 ## Installation
 
