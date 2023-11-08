@@ -1,12 +1,17 @@
-# Acorn FSE Package
+# Acorn FSE
 
-This repo can be used to scaffold an Acorn package. See the [Acorn Package Development](https://roots.io/acorn/docs/package-development/) docs for further information.
+**This package is a work in progress.**
+
+This [`roots/acorn`](https://roots.io/acorn/) package provides a way to use
+the [WordPress Full Site Editing](https://make.wordpress.org/core/2020/11/18/full-site-editing-in-wordpress-5-6/)
+features in a [Sage 10](https://roots.io/sage/).
 
 ## Installation
 
 You can install this package with Composer:
 
 ```bash
+composer config repositories.acorn-fse vcs https://github.com/zirkeldesign/acorn-fse
 composer require zirkeldesign/acorn-fse
 ```
 
@@ -18,14 +23,4 @@ $ wp acorn vendor:publish --provider="Zirkeldesign\AcornFSE\Providers\AcornFSESe
 
 ## Usage
 
-From a Blade template:
-
-```blade
-@include('AcornFSE::example')
-```
-
-From WP-CLI:
-
-```shell
-$ wp acorn fse
-```
+*Needs to be documented.*
