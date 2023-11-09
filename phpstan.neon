@@ -1,0 +1,10 @@
+parameters:
+  level: 5
+  paths:
+    - src
+    - tests
+  scanDirectories:
+    - vendor/roots/wordpress-no-content
+  ignoreErrors:
+    # WP-CLI accepts a class name as callable
+    - '/^Parameter #2 \$callable of static method WP_CLI::add_command\(\) expects callable\(\): mixed, \S+ given\.$/'
