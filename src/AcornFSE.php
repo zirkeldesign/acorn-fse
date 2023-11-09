@@ -3,7 +3,10 @@
 namespace Zirkeldesign\AcornFSE;
 
 use Roots\Acorn\Application;
+use Roots\Acorn\Filesystem\Filesystem;
+use Roots\Acorn\Sage\SageServiceProvider;
 use Roots\Acorn\Sage\ViewFinder;
+
 use function Roots\add_filters;
 use function Roots\remove_filters;
 
@@ -32,31 +35,116 @@ class AcornFSE
 
     /**
      * Create a new AcornFSE instance.
-     *
-     * @param  Application  $app
-     * @param  ViewFinder  $sageFinder
      */
     public function __construct(
         private readonly Application $app,
         private readonly ViewFinder $sageFinder,
+        private readonly Filesystem $files,
+        private ?string $path = null,
     ) {
+        $this->path ??= $this->app->basePath();
+
         add_action('after_setup_theme', [$this, 'addThemeSupport']);
     }
 
     /**
      * Enable theme support for FSE.
-     *
-     * @return void
      */
     public function addThemeSupport(): void
     {
         \add_theme_support('block-templates');
+        \add_theme_support('wp-block-styles');
+    }
+
+    public function prepareSageTheme()
+    {
+        if (! $this->app->bound('sage')) {
+            return;
+        }
+
+        $this->app->getProvider(SageServiceProvider::class)?->booted(
+            function () {
+                $this->checkThemeCompability();
+                $this->bindCompatFilters();
+            });
+    }
+
+    public function checkThemeCompability()
+    {
+        if (! is_admin()) {
+            return;
+        }
+
+        $issues = [];
+
+        // Check whether required FSE files exist
+        $required_files = [
+            'templates/index.html',
+            'style.css',
+        ];
+        $issues['required'] = array_filter($required_files, fn ($file) => ! $this->files->exists($this->path.'/'.$file));
+
+        // Check for optional FSE files
+        $optional_files = [
+            'parts/',
+            'patterns/',
+        ];
+        $issues['optional'] = array_filter($optional_files, fn ($file) => ! $this->files->exists($this->path.'/'.$file));
+
+        // Ensure that index.php calls view(app('sage.view'), app('sage.data'))->render().
+        // It must be called before wp_head() to ensure that the block styles are generated
+        // correctly. We should use a loose comparison here, because the view() function
+        // might be called with different parameters.
+        // @see https://fullsiteediting.com/lessons/how-to-use-php-templates-in-block-themes/#h-making-sure-that-wordpress-loads-the-block-css
+        $index_php = $this->files->get($this->path.'/index.php');
+        $needle = 'view(app(\'sage.view\'), app(\'sage.data\'))->render()';
+        if (! str_contains($index_php, $needle)
+            || strpos($index_php, $needle) > strpos($index_php, 'wp_head()')
+        ) {
+            $issues['view_render_position'] = true;
+        }
+
+        // Build error message
+        $message = '';
+        if (! empty($issues['required'])) {
+            $message .= '<p><strong>Required FSE files are missing:</strong></p>';
+            $message .= '<ul>';
+            foreach ($issues['required'] as $file) {
+                $message .= '<li>'.$file.'</li>';
+            }
+            $message .= '</ul>';
+        }
+        if (! empty($issues['optional'])) {
+            $message .= '<p><strong>Optional FSE files are missing:</strong></p>';
+            $message .= '<ul>';
+            foreach ($issues['optional'] as $file) {
+                $message .= '<li>'.$file.'</li>';
+            }
+            $message .= '</ul>';
+        }
+        if (! empty($issues['view_render_position'])) {
+            $message .= '<p>index.php does not call view(app(\'sage.view\'), app(\'sage.data\'))->render() before wp_head().</p>';
+        }
+
+        // Display error message
+        if (! empty($message)) {
+            add_action(
+                'admin_notices',
+                function () use ($message) {
+                    echo <<<HTML
+<div class="notice notice-error">
+    <p><strong>Acorn FSE:</strong><br> There are some issues with your theme:</p>
+    {$message}
+</div>
+HTML;
+                }
+            );
+        }
+
     }
 
     /**
      * Use own template filters besides Acorn filters to support FSE.
-     *
-     * @return void
      */
     public function bindCompatFilters(): void
     {
@@ -81,10 +169,6 @@ class AcornFSE
 
     /**
      * Build template hierarchy with FSE paths on top.
-     *
-     * @param $files
-     *
-     * @return array
      */
     public function filterTemplateHierarchy($files): array
     {
@@ -92,7 +176,7 @@ class AcornFSE
 
         // Extract all entries, which point to an official FSE path (e.g. templates/...)
         $fse_paths = array_filter($hierarchy,
-            static fn($file) => str_starts_with($file, 'templates/') || str_contains($file, 'templates/'));
+            static fn ($file) => str_starts_with($file, 'templates/') || str_contains($file, 'templates/'));
         $hierarchy = array_diff($hierarchy, $fse_paths);
 
         // Build hierarchy with original $files and FSE paths on top.
@@ -102,7 +186,6 @@ class AcornFSE
     /**
      * Add short circuit filter to return existing (non-blade) files early.
      *
-     * @param $file
      *
      * @return string
      */
