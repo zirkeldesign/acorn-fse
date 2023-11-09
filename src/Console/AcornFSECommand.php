@@ -3,7 +3,6 @@
 namespace Zirkeldesign\AcornFSE\Console;
 
 use Roots\Acorn\Console\Commands\Command;
-use Zirkeldesign\AcornFSE\Facades\AcornFSE;
 
 class AcornFSECommand extends Command
 {
