@@ -3,9 +3,9 @@
 namespace Zirkeldesign\AcornFSE;
 
 use Roots\Acorn\Application;
-use Roots\Acorn\Filesystem\Filesystem;
 use Roots\Acorn\Sage\SageServiceProvider;
 use Roots\Acorn\Sage\ViewFinder;
+use Zirkeldesign\AcornFSE\Services\CheckThemeService;
 
 use function Roots\add_filters;
 use function Roots\remove_filters;
@@ -39,11 +39,8 @@ class AcornFSE
     public function __construct(
         private readonly Application $app,
         private readonly ViewFinder $sageFinder,
-        private readonly Filesystem $files,
-        private ?string $path = null,
+        private readonly CheckThemeService $checkThemeService,
     ) {
-        $this->path ??= $this->app->basePath();
-
         add_action('after_setup_theme', [$this, 'addThemeSupport']);
     }
 
@@ -64,91 +61,9 @@ class AcornFSE
 
         $this->app->getProvider(SageServiceProvider::class)?->booted(
             function () {
-                $this->checkThemeCompability();
+                $this->checkThemeService->audit();
                 $this->bindCompatFilters();
             });
-    }
-
-    public function checkThemeCompability()
-    {
-        if (! is_admin()) {
-            return;
-        }
-
-        $issues = [];
-
-        // Check whether required FSE files exist
-        $required_files = [
-            'templates/index.html',
-            'style.css',
-        ];
-        $issues['required'] = array_filter($required_files, fn ($file) => ! $this->files->exists($this->path.'/'.$file));
-
-        // Check for optional FSE files
-        $optional_files = [
-            'parts/',
-            'patterns/',
-        ];
-        $issues['optional'] = array_filter($optional_files, fn ($file) => ! $this->files->exists($this->path.'/'.$file));
-
-        // Ensure that index.php calls view(app('sage.view'), app('sage.data'))->render().
-        // It must be called before wp_head() to ensure that the block styles are generated
-        // correctly. We should use a loose comparison here, because the view() function
-        // might be called with different parameters.
-        // @see https://fullsiteediting.com/lessons/how-to-use-php-templates-in-block-themes/#h-making-sure-that-wordpress-loads-the-block-css
-        $index_php = $this->files->get($this->path.'/index.php');
-        $needle = 'view(app(\'sage.view\'), app(\'sage.data\'))->render()';
-        if (! str_contains($index_php, $needle)
-            || strpos($index_php, $needle) > strpos($index_php, 'wp_head()')
-        ) {
-            $issues['view_render_position'] = true;
-        }
-
-        // Build error message
-        $message = '';
-        if (! empty($issues['required'])) {
-            $message .= '<p><strong>Required FSE files are missing:</strong></p>';
-            $message .= '<ul class="ul-disc">';
-            foreach ($issues['required'] as $file) {
-                $message .= '<li>'.$file.'</li>';
-            }
-            $message .= '</ul>';
-        }
-        if (! empty($issues['optional'])) {
-            $message .= '<p><strong>Optional FSE files are missing:</strong></p>';
-            $message .= '<ul class="ul-disc">';
-            foreach ($issues['optional'] as $file) {
-                $message .= '<li>'.$file.'</li>';
-            }
-            $message .= '</ul>';
-        }
-        if (! empty($issues['view_render_position'])) {
-            $message .= <<<'HTML'
-<p><strong>index.php</strong> does not call <code>view(app('sage.view'), app('sage.data'))->render()</code> before <code>wp_head()</code>.
-To generate the block styles correctly, it must be called before <code>wp_head()</code>. Please modify your <strong>index.php</strong> accordingly.</p>
-HTML;
-        }
-
-        // Display error message
-        if (! empty($message)) {
-            add_action(
-                'admin_notices',
-                function () use ($message) {
-                    wp_admin_notice(
-                        <<<HTML
-                            <p><strong>Acorn FSE:</strong> We found following issues:</p>
-                            {$message}
-                        HTML,
-                        [
-                            'type' => 'warning',
-                            'paragraph_wrap' => false,
-                            'dismissible' => false,
-                        ]
-                    );
-                }
-            );
-        }
-
     }
 
     /**
