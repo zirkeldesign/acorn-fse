@@ -8,13 +8,13 @@ use Roots\Acorn\Filesystem\Filesystem;
 class CheckThemeService
 {
     private array $required_files = [
-        'templdates/index.html',
-        'style.csfs',
+        'templates/index.html',
+        'style.css',
     ];
 
     private array $optional_files = [
-        'pardts/',
-        'pattderns/',
+        'parts/',
+        'patterns/',
     ];
 
     public function __construct(
@@ -23,6 +23,8 @@ class CheckThemeService
         private ?string $path = null,
     ) {
         $this->path ??= $this->app->basePath();
+
+        add_action('admin_post_acorn_fse_fix_view_render_position', [$this, 'runFixViewRenderPosition']);
     }
 
     public function audit(): array
@@ -54,9 +56,21 @@ class CheckThemeService
         $issues['view_render_position'] = ! $this->hasCorrectViewRenderPosition();
         if ($issues['view_render_position']) {
             $this->notice(
-                <<<'HTML'
-            Your theme's <code>index.php</code> file does not call <code>view(app('sage.view'), app('sage.data'))->render()</code> before <code>wp_head()</code>. Please update it. Otherwise, block styles will not be generated correctly.
-            HTML,
+                sprintf(
+                    <<<'HTML'
+                    Your theme's <code>index.php</code> file does not call <code>view(app('sage.view'), app('sage.data'))->render()</code> before <code>wp_head()</code>. Please update it. Otherwise, block styles will not be generated correctly.
+                    If we should try to fix this automatically, click <a href="%s">here</a>.
+                    HTML,
+                    esc_url(
+                        add_query_arg(
+                            [
+                                'action' => 'acorn_fse_fix_view_render_position',
+                                '_wpnonce' => wp_create_nonce('acorn_fse_fix_view_render_position'),
+                            ],
+                            admin_url('admin-post.php')
+                        )
+                    )
+                ),
                 ['type' => 'warning']
             );
         }
@@ -94,7 +108,7 @@ class CheckThemeService
         }
 
         $file = $this->files->get($this->path.'/index.php');
-        $needle = "view(app('sage.view'), app('sage.data'))->render()";
+        $needle = "view(app('sage.view'), app('sage.data'))->render();";
 
         return ! (! str_contains($file, $needle)
                    || strpos($file, $needle) > strpos($file, 'wp_head()'));
@@ -124,5 +138,46 @@ class CheckThemeService
                 wp_admin_notice($message, $args);
             }
         );
+    }
+
+    private function fixViewRenderPosition()
+    {
+        $file = $this->files->get($this->path.'/index.php');
+        $needle = "view(app('sage.view'), app('sage.data'))->render();";
+
+        if (strpos($file, $needle) > strpos($file, 'wp_head()')) {
+            $file = str_replace([$needle, 'wp_head()'], ['$app;', '$app = '.$needle."\nwp_head()"], $file);
+        }
+
+        $this->files->put($this->path.'/index.php', $file);
+
+        $this->notice(
+            <<<'HTML'
+            Your theme's <code>index.php</code> file has been updated to call <code>view(app('sage.view'), app('sage.data'))->render()</code> before <code>wp_head()</code>. Please check the changes and commit them.
+            HTML,
+            ['type' => 'success']
+        );
+    }
+
+    public function runFixViewRenderPosition()
+    {
+        if (! current_user_can('manage_options')) {
+            wp_die('You do not have sufficient permissions to access this page.');
+        }
+
+        check_admin_referer('acorn_fse_fix_view_render_position');
+
+        $this->fixViewRenderPosition();
+
+        wp_safe_redirect(
+            add_query_arg(
+                [
+                    'page' => 'dashboard',
+                    'acorn-fse-success' => 'view_render_position',
+                ],
+                admin_url('themes.php')
+            )
+        );
+        exit;
     }
 }
