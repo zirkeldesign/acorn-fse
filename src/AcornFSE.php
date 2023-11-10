@@ -109,7 +109,6 @@ class AcornFSE
     /**
      * Add short circuit filter to return existing (non-blade) files early.
      *
-     *
      * @return string
      */
     public function filterTemplateInclude($file)
