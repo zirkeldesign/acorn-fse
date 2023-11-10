@@ -108,7 +108,7 @@ class AcornFSE
         $message = '';
         if (! empty($issues['required'])) {
             $message .= '<p><strong>Required FSE files are missing:</strong></p>';
-            $message .= '<ul>';
+            $message .= '<ul class="ul-disc">';
             foreach ($issues['required'] as $file) {
                 $message .= '<li>'.$file.'</li>';
             }
@@ -116,14 +116,17 @@ class AcornFSE
         }
         if (! empty($issues['optional'])) {
             $message .= '<p><strong>Optional FSE files are missing:</strong></p>';
-            $message .= '<ul>';
+            $message .= '<ul class="ul-disc">';
             foreach ($issues['optional'] as $file) {
                 $message .= '<li>'.$file.'</li>';
             }
             $message .= '</ul>';
         }
         if (! empty($issues['view_render_position'])) {
-            $message .= '<p>index.php does not call view(app(\'sage.view\'), app(\'sage.data\'))->render() before wp_head().</p>';
+            $message .= <<<'HTML'
+<p><strong>index.php</strong> does not call <code>view(app('sage.view'), app('sage.data'))->render()</code> before <code>wp_head()</code>.
+To generate the block styles correctly, it must be called before <code>wp_head()</code>. Please modify your <strong>index.php</strong> accordingly.</p>
+HTML;
         }
 
         // Display error message
@@ -131,12 +134,17 @@ class AcornFSE
             add_action(
                 'admin_notices',
                 function () use ($message) {
-                    echo <<<HTML
-<div class="notice notice-error">
-    <p><strong>Acorn FSE:</strong><br> There are some issues with your theme:</p>
-    {$message}
-</div>
-HTML;
+                    wp_admin_notice(
+                        <<<HTML
+                            <p><strong>Acorn FSE:</strong> We found following issues:</p>
+                            {$message}
+                        HTML,
+                        [
+                            'type' => 'warning',
+                            'paragraph_wrap' => false,
+                            'dismissible' => false,
+                        ]
+                    );
                 }
             );
         }
