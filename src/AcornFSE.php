@@ -97,6 +97,11 @@ class AcornFSE
     {
         $hierarchy = $this->sageFinder->locate($files);
 
+        // If the theme does not support FSE, return the original hierarchy.
+        if ( ! wp_is_block_theme() ) {
+            return $hierarchy;
+        }
+
         // Extract all entries, which point to an official FSE path (e.g. templates/...)
         $fse_paths = array_filter($hierarchy,
             static fn ($file) => str_starts_with($file, 'templates/') || str_contains($file, 'templates/'));
