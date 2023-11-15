@@ -123,7 +123,6 @@ class AcornFSE
      */
     public function filterTemplateInclude($file)
     {
-        ray($file);
         if (@file_exists($file)
             && ! str_contains($file, '.blade.php')
         ) {
